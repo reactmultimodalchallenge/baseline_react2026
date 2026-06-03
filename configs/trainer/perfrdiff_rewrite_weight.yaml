@@ -1,0 +1,89 @@
+model_name: perfrdiff_rewrite_weight
+_target_: trainer.perfrdiff_rewrite_weight.Trainer
+
+trainer_mode: generic
+folder: save/${trainer.model_name}/${data.data_name}/${task}
+ckpt_dir: ${get_last_checkpoint:${trainer.folder}}
+resumed_training: ${resume}
+current_runid: ${run_id}
+resume_runid: ${resume_id}
+batch_size: 4
+post_config_name: configs/model/emotion_autoencoder.yaml
+post_clip_length: 1000
+data_clamp: True
+num_eval_preds: 10
+eval_clip_batch_size: 16
+parallel_eval_preds: True
+
+pretrained:
+    diffusion_prior: pretrained_models/diffusion_model/DiffusionPriorNetwork/checkpoint.pth
+    diffusion_decoder: pretrained_models/diffusion_model/TransformerDenoiser/checkpoint.pth
+    modifier_checkpoint: ""
+    eeg_head_checkpoint: pretrained_models/rewrite_weight/EEGPredictionHead/checkpoint.pth
+
+person_specific:
+    checkpoint_path: pretrained_models/person_specific/checkpoint.pth
+    args:
+        in_features: 58
+        embed_dim: 512
+        num_heads: 4
+        num_layers: 4
+        mlp_dim: 1024
+        seq_len: 750
+        proj_dim: 512
+        proj_head: mlp
+        drop_prob: 0.1
+        max_len: 1000
+        pos_encoding: absolute
+        embed_layer: linear
+
+main_model:
+    args:
+        input_dim: 512
+        latent_dim: 1024
+        embed_dim: 512
+        personal_condition_mode: 3dmm_personality
+        personality_input_dim: 5
+        personality_hidden_dim: 128
+        personality_dropout: 0.1
+        personality_fusion_hidden_dim: 512
+        regularization: False
+        regular_w: 0.0
+        num_shared_layers: 2
+        modified_layers:
+            - diffusion_decoder.model.decoder.layers.4.multihead_attn
+            - diffusion_decoder.model.decoder.layers.6.multihead_attn
+            - diffusion_decoder.model.to_emotion_feat
+        predict: shift
+        modify: all
+    optimizer_hypernet:
+        type: sgd
+        args:
+            lr: 0.001
+            weight_decay: 1e-4
+            momentum: 0.9
+
+generic:
+    seed: 1234
+    start_epoch: 0
+    epochs: 100
+    model: LatentMatcher
+    clip_grad: False
+    num_workers: 16
+    log_dir: log
+    tb_dir: tb_logs
+    out_dir: results
+    save_period: 10
+    val_period: 10
+    num_preds: 1
+    clip_length: 750
+    window_size: 30
+    s_ratio: 2
+    train_eeg: False
+    train_eeg_head_only: False
+    eval_eeg: True
+    bidirectional: False
+
+defaults:
+    - /model/motion_diffusion@model
+    - /model/losses/perfrdiff_rewrite_weight@criterion

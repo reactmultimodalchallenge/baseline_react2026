@@ -1,0 +1,125 @@
+data_name: react_2025
+_target_: dataset.react_2025.ReactionDataloader
+
+train_dataset:
+    _target_: dataset.react_2025.ReactionDataset
+    batch_size: ${trainer.batch_size}
+    shuffle: True
+    num_workers: 8
+    root_dir: ${data_dir}
+    split: train
+    clip_length: ${trainer.max_seq_len}
+    target_size: 224
+    crop_size: 224
+    fps: 30
+    audio_feature_type: wav2vec
+    load_video_s: True
+    load_video_l: False
+    load_audio: True
+    load_emotion_s: True
+    load_emotion_l: True
+    load_3dmm_s: True
+    load_3dmm_l: True
+    load_eeg_l: True
+    eeg_dir_name: eeg_processed
+    eeg_target_cols:
+        - TP9
+        - AF7
+        - AF8
+        - TP10
+        - Delta_TP9
+        - Theta_TP9
+        - Alpha_TP9
+        - Beta_TP9
+        - Gamma_TP9
+        - Delta_TP10
+        - Theta_TP10
+        - Alpha_TP10
+        - Beta_TP10
+        - Gamma_TP10
+    eeg_channel_scale: 1000.0
+    eeg_use_tar_fallback: True
+    bidirectional: ${trainer.bidirectional}
+    normalize_3dmm: ${trainer.data_transform}
+
+validation_dataset:
+    _target_: dataset.react_2025.ReactionDataset
+    batch_size: ${trainer.batch_size}
+    shuffle: False
+    num_workers: 8
+    root_dir: ${data_dir}
+    split: val
+    target_size: 224
+    crop_size: 224
+    clip_length: ${trainer.max_seq_len}
+    fps: 30
+    audio_feature_type: wav2vec
+    load_video_s: True
+    load_video_l: False
+    load_audio: True
+    load_emotion_s: True
+    load_emotion_l: True
+    load_3dmm_s: True
+    load_3dmm_l: True
+    load_eeg_l: True
+    eeg_dir_name: eeg_processed
+    eeg_target_cols:
+        - TP9
+        - AF7
+        - AF8
+        - TP10
+        - Delta_TP9
+        - Theta_TP9
+        - Alpha_TP9
+        - Beta_TP9
+        - Gamma_TP9
+        - Delta_TP10
+        - Theta_TP10
+        - Alpha_TP10
+        - Beta_TP10
+        - Gamma_TP10
+    eeg_channel_scale: 1000.0
+    eeg_use_tar_fallback: True
+    bidirectional: ${trainer.bidirectional}
+    normalize_3dmm: ${trainer.data_transform}
+
+test_dataset:
+    _target_: dataset.react_2025.ReactionDataset
+    batch_size: 1
+    shuffle: True
+    num_workers: 0
+    root_dir: ${data_dir}
+    split: test
+    target_size: 224
+    crop_size: 224
+    clip_length: ${trainer.max_seq_len}
+    fps: 30
+    audio_feature_type: wav2vec  # mfcc | wav2vec
+    load_video_s: True
+    load_video_l: ${trainer.renderer.do_render}
+    load_audio: True
+    load_emotion_s: True
+    load_emotion_l: ${trainer.eval_facial_metrics}
+    load_3dmm_s: True
+    load_3dmm_l: False
+    load_eeg_l: ${trainer.eval_eeg}
+    eeg_dir_name: eeg_processed
+    eeg_target_cols:
+        - TP9
+        - AF7
+        - AF8
+        - TP10
+        - Delta_TP9
+        - Theta_TP9
+        - Alpha_TP9
+        - Beta_TP9
+        - Gamma_TP9
+        - Delta_TP10
+        - Theta_TP10
+        - Alpha_TP10
+        - Beta_TP10
+        - Gamma_TP10
+    eeg_channel_scale: 1000.0
+    eeg_use_tar_fallback: True
+    bidirectional: ${trainer.bidirectional}
+    normalize_3dmm: ${trainer.data_transform}
