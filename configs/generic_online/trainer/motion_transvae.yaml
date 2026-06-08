@@ -1,0 +1,42 @@
+model_name: motion_transvae
+_target_: trainer.motion_transvae.Trainer
+
+folder: save/${trainer.model_name}/${data.data_name}/${task}
+ckpt_dir: ${get_last_checkpoint:${trainer.folder}}
+resumed_training: ${resume}  # true | false
+current_runid: ${run_id}
+resume_runid: ${resume_id}
+
+epochs: 100
+gpu_ids: 0
+lr: 0.00001
+j: 12  # num_workers
+batch_size: 4
+max_seq_len: 750
+window_size: 8
+div_p: 10
+post_config_name: configs/shared/model/emotion_autoencoder.yaml
+post_clip_length: 1000  # ground-truths alignment
+data_clamp: True
+data_transform: zero_center  # standard | zero_center
+train_eeg_head_only: False
+pretrained_model_checkpoint: ""
+eval_eeg: True
+num_preds: 10
+bidirectional: False
+save_results: True
+eval_facial_metrics: True
+eval_eeg_metrics: True
+metric_threads: 1
+eval_clip_batch_size: 1
+
+renderer:  # face animation based on predicted 3DMM coefficients
+    name: PIRenderer
+    _target_: utils.render.Render
+    do_render: True
+    transform_reverse: ${trainer.data_transform}
+
+defaults:
+    - /generic_online/model/motion_transvae@model
+    - /shared/model/optim/adamw@optim
+    - /generic_online/model/losses/motion_transvae@criterion  # loss func

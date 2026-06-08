@@ -1,0 +1,8 @@
+type: DiffusionLoss
+args:
+    losses_type: [MSELoss, MSELoss]
+    losses_multipliers: [0, 1]
+    losses_decoded: [False, True]
+    k: ${trainer.${trainer.trainer_mode}.num_preds}
+    temporal_loss_w: 0.0
+    eeg_loss_weight: 1.0

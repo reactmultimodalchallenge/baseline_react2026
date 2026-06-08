@@ -1,0 +1,23 @@
+hydra:
+  run:
+    dir: outputs/${trainer.model_name}/${data.data_name}/${task}/${run_id}
+  job:
+    chdir: true
+
+seed: 1234
+logger_level: INFO
+
+task: offline
+stage: ???
+data_dir: ???
+resume: false
+run_id: ${generate_id:}
+resume_id: ""
+num_gts: 10
+
+defaults:
+  - /generic_offline/data/motion_transvae@data
+  - /generic_offline/trainer/motion_transvae@trainer
+  - /shared/logger: none
+  - /shared/path@path
+  - _self_

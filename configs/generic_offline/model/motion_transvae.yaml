@@ -1,0 +1,24 @@
+model_name: TransformerVAE
+_target_: framework.motion_transvae.TransformerVAE.TransformerVAE
+
+img_size: 224
+audio_dim: 768
+output_3dmm_dim: 58
+output_emotion_dim: 25
+feature_dim: 128
+seq_len: ${data.train_dataset.clip_length}
+task: ${task}
+window_size: ${trainer.window_size}
+device: cuda
+
+eeg_head:
+    enabled: True
+    output_dim: 14
+    hidden_dim: 256
+    dropout: 0.5
+    pooling: mean
+    detach_prediction_emotion: True
+    use_speaker_audio: True
+    use_speaker_emotion: True
+    use_speaker_3dmm: True
+    use_prediction_emotion: True
