@@ -13,7 +13,7 @@ from framework.utils.util import from_pretrained_checkpoint
 
 class Processor:
     def __init__(self,
-                 config_name: str = "configs/model/emotion_autoencoder.yaml",
+                 config_name: str = "configs/shared/model/emotion_autoencoder.yaml",
                  ckpt_dir: str = "pretrained_models/post_processor",
                  device: Optional[torch.device] = None,
                  clip_len_test: int = 1000,

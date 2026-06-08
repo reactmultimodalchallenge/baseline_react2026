@@ -284,7 +284,7 @@ def _parse_args():
     parser.add_argument("--bidirectional", action="store_true", help="Evaluate both speaker->listener and listener->speaker.")
     parser.add_argument("--max_samples", type=int, default=None, help="Optional smoke-test sample limit.")
     parser.add_argument("--output_path", default="baseline_reaction_results.pt", help="Output .pt path.")
-    parser.add_argument("--post_config_name", default="configs/model/emotion_autoencoder.yaml")
+    parser.add_argument("--post_config_name", default="configs/shared/model/emotion_autoencoder.yaml")
     parser.add_argument("--post_ckpt_dir", default=None, help="Post-processor checkpoint directory.")
     parser.add_argument("--post_clip_length", type=int, default=1000)
     parser.add_argument("--device", default=None, help="Post-processor device, e.g. cuda:0 or cpu.")

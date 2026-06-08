@@ -34,7 +34,7 @@ class Trainer:
             main_model: DictConfig = None,
             pretrained: DictConfig = None,
             batch_size: int = 4,
-            post_config_name: str = "configs/model/emotion_autoencoder.yaml",
+            post_config_name: str = "configs/shared/model/emotion_autoencoder.yaml",
             post_clip_length: int = 1000,
             data_clamp: bool = True,
             num_eval_preds: int = 10,
@@ -727,7 +727,7 @@ class Trainer:
                 if "prediction_eeg" not in outputs:
                     raise RuntimeError(
                         "trainer.generic.eval_eeg=True but the model did not return prediction_eeg. "
-                        "Check configs/model/motion_diffusion.yaml -> eeg_head.enabled."
+                        "Check configs/<task-section>/model/motion_diffusion.yaml -> eeg_head.enabled."
                     )
                 eeg_predictions.append(outputs["prediction_eeg"].detach().cpu())
         if return_eeg:

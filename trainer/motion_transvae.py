@@ -481,7 +481,7 @@ class Trainer:
         if self.eval_eeg:
             if getattr(model, "eeg_head", None) is None:
                 raise RuntimeError(
-                    "trainer.eval_eeg=True but configs/model/motion_transvae.yaml has no enabled eeg_head."
+                    "trainer.eval_eeg=True but configs/<task-section>/model/motion_transvae.yaml has no enabled eeg_head."
                 )
             eeg_ckpt_path = self.get_ckpt_path(
                 model.eeg_head,

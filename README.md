@@ -178,76 +178,128 @@ Finally, please download the compressed folder named `pretrained_models` from [t
 
 <details><summary> <b> Training </b>  </summary>
 <p>
- 
- <b>Trans-VAE</b>
-- Running the following shell can start training Trans-VAE baseline for the offline task:
- ```shell
- python main.py \
-    data=motion_transvae \
-    trainer=motion_transvae \
-    trainer.batch_size=4 \
-    trainer.max_seq_len=750 \
-    trainer.window_size=8 \
+
+<b>Generic online: </b>
+<p>
+
+<b>1. PerFRDiff + EEG</b>
+<p>
+
+```shell
+python main.py \
+    --config-name generic_online/motion_diffusion \
+    trainer.batch_size=8 \
     stage=fit \
-    task=offline \
-    data_dir=./data
- ```
- &nbsp; &nbsp; or for the online task:
- 
-  ```shell
- python main.py \
-    data=motion_transvae \
-    trainer=motion_transvae \
+    data_dir=./datasets/REACT2026/ \
+    trainer.model.diff_model.eeg_head.enabled=true \
+    trainer.generic.train_eeg_head_only=false
+```
+
+<b>2. TransVAE + EEG</b>
+
+```shell
+python main.py \
+    --config-name generic_online/motion_transvae \
     trainer.batch_size=2 \
     trainer.max_seq_len=256 \
     trainer.window_size=16 \
     stage=fit \
-    task=online \
-    data_dir=./data
- ```
- 
- <b>PerFRDiff</b>
- - Running the following shell can start training PerFRDiff baseline for the offline task: 
-```shell
-python main.py \
-    data=motion_diffusion \
-    trainer=motion_diffusion \
-    trainer.batch_size=2 \
-    stage=fit \
-    task=offline \
-    data_dir=./data
-```
- &nbsp; &nbsp; or for the online task:
-```shell
-python main.py \
-    data=motion_diffusion \
-    trainer=motion_diffusion \
-    trainer.batch_size=8 \
-    stage=fit \
-    task=online \
-    data_dir=./data
+    data_dir=./datasets/REACT2026/ \
+    trainer.train_eeg_head_only=false \
+    trainer.model.eeg_head.enabled=true \
 ```
 
- <b>REGNN</b>
- - Make sure you are in the folder `regnn` before running any cells related to REGNN.
- - First extract the image features using the pre-trained swin_transformer (pretrained weights already provided in `pretrained_models`).
- ```shell
- python feature_extraction.py
- ```
 
- - Then train the REGNN by running the following shell:
- ```shell
- python train.py \
-     --logs-dir='Gmm-logs' \
-     --milestones=9 \
-     --batch-size=64 \
-     --layers=2 \
-     --norm \
-     --neighbor-pattern='all' \
-     --convert-type='direct' \
-     --loss-mid \
-     --data-dir=../data
- ```
+<b>Personalized online: </b>
+<p>
+
+<b>PerFRDiff rewrite-weight + EEG</b>
+<p>
+
+(a) Condition Input: Listener historical facial behaviours
+```shell
+python main.py \
+    --config-name personalized_online/perfrdiff_rewrite_weight \
+    stage=fit \
+    data_dir=./datasets/REACT2026/ \
+    trainer.generic.train_eeg=true \
+    trainer.generic.train_eeg_head_only=false \
+    trainer.main_model.args.personal_condition_mode=3dmm_only
+```
+
+(b) Condition Input: Personality_only
+```shell
+python main.py \
+    --config-name personalized_online/perfrdiff_rewrite_weight \
+    stage=fit \
+    data_dir=./datasets/REACT2026/ \
+    trainer.generic.train_eeg=true \
+    trainer.generic.train_eeg_head_only=false \
+    trainer.main_model.args.personal_condition_mode=personality_only
+```
+
+(c) Condition Input: Listener historical facial behaviours + Personality_only
+```shell
+python main.py \
+    --config-name personalized_online/perfrdiff_rewrite_weight \
+    stage=fit \
+    data_dir=./datasets/REACT2026/ \
+    trainer.generic.train_eeg=true \
+    trainer.generic.train_eeg_head_only=false \
+    trainer.main_model.args.personal_condition_mode=3dmm_personality
+```
+
+<b>Generic offline: </b>
+<p>
+
+<b> 1. TransVAE + EEG</b>
+<p>
+
+```shell
+python main.py \
+    --config-name generic_offline/motion_transvae \
+    trainer.batch_size=4 \
+    trainer.max_seq_len=750 \
+    trainer.window_size=8 \
+    stage=fit \
+    data_dir=./datasets/REACT2026/ \
+    trainer.train_eeg_head_only=false \
+    trainer.model.eeg_head.enabled=true \
+```
+
+<b>2. ReGNN + EEG</b>
+<p>
+
+(a) Run this command from the `regnn/` directory:
+```shell
+cd ./regnn
+```
+
+(b) Extract the image features using the pre-trained swin_transformer (pretrained weights already provided in `./pretrained_models`):
+```shell
+python feature_extraction.py
+```
+(c) Train the REGNN by running the following shell:
+```shell
+python train.py \
+    --logs-dir "Gmm-logs-eeg-head" \
+    --data-dir ./datasets/REACT2026/ \
+    --enable-eeg-head \
+    --eeg-loss-weight 0.25 \
+    --lr 0.0001 \
+    --gamma 0.1 \
+    --warmup-factor 0.01 \
+    --milestones 9 \
+    --batch-size 64 \
+    --layers 2 \
+    --act "ELU" \
+    --seed 1 \
+    --train-iters 100 \
+    --norm \
+    --neighbor-pattern "all" \
+    --convert-type "direct" \
+    --loss-mid
+```
  
 </p>
 </details>
@@ -264,59 +316,125 @@ python main.py \
 For evaluation, please refer to `test` function in _./trainer/motion_diffusion.py_ (PerFRDiff baseline) or _./trainer/motion_transvae.py_ (Trans-VAE baseline). The metric computations are implemented in _./framework/utils/compute_metrics.py_. The validation set can be treated as the test set by loading it via the provided dataloader file. As in the baseline paper, all facial reactions from different participants within the same session are defined as ground-truths.
 The pretrained model weights will be released soon.
 
-<b>Trans-VAE</b>
-- Running the following shell can evaluate a trained Trans-VAE baseline for the offline task:
- ```shell
- python main.py \
-    data=motion_transvae \
-    trainer=motion_transvae \
+<b>Generic online: </b>
+<p>
+
+<b>1. PerFRDiff + EEG</b>
+<p>
+
+```shell
+python main.py \
+    --config-name generic_online/motion_diffusion \
+    trainer.batch_size=1 \
+    stage=test \
+    data_dir=./datasets/REACT2026/ \
+    resume_id=<train-experiment-id> \
+    trainer.generic.eval_eeg=true \
+    trainer.model.diff_model.eeg_head.enabled=true
+```
+
+<b>2. TransVAE + EEG</b>
+
+```shell
+python main.py \
+    --config-name generic_online/motion_transvae \
+    trainer.batch_size=1 \
+    trainer.max_seq_len=256 \
+    trainer.window_size=16 \
+    stage=test \
+    data_dir=./datasets/REACT2026/ \
+    trainer.data_transform=zero_center \
+    resume_id=<train-experiment-id>  \
+    trainer.eval_eeg=true \
+    trainer.eval_eeg_metrics=true \
+    trainer.eval_facial_metrics=true \
+    trainer.save_results=true \
+    trainer.renderer.do_render=false
+```
+
+<b>Personalized online: </b>
+<p>
+
+<b>PerFRDiff rewrite-weight + EEG</b>
+<p>
+
+(a) Condition Input: Listener historical facial behaviours
+```shell
+python main.py \
+    --config-name personalized_online/perfrdiff_rewrite_weight \
+    trainer.batch_size=1 \
+    stage=test \
+    data_dir=./datasets/REACT2026/ \
+    resume_id=<train-experiment-id> \
+    trainer.generic.eval_eeg=true \
+    trainer.main_model.args.personal_condition_mode=3dmm_only
+```
+
+(b) Condition Input: Personality_only
+```shell
+python main.py \
+    --config-name personalized_online/perfrdiff_rewrite_weight \
+    trainer.batch_size=1 \
+    stage=test \
+    data_dir=./datasets/REACT2026/ \
+    resume_id=<train-experiment-id> \
+    trainer.generic.eval_eeg=true \
+    trainer.main_model.args.personal_condition_mode=personality_only
+```
+
+(c) Condition Input: Listener historical facial behaviours + Personality_only
+```shell
+python main.py \
+    --config-name personalized_online/perfrdiff_rewrite_weight \
+    trainer.batch_size=1 \
+    stage=test \
+    data_dir=./datasets/REACT2026/ \
+    resume_id=<train-experiment-id> \
+    trainer.generic.eval_eeg=true \
+    trainer.main_model.args.personal_condition_mode=3dmm_personality
+```
+
+<b>Generic offline: </b>
+<p>
+
+<b>1. TransVAE + EEG</b>
+<p>
+
+```shell
+python main.py \
+    --config-name generic_offline/motion_transvae \
+    stage=test \
+    data_dir=./datasets/REACT2026/ \
     trainer.batch_size=1 \
     trainer.max_seq_len=750 \
     trainer.window_size=8 \
     trainer.data_transform=zero_center \
-    stage=test \
-    task=offline \
-    data_dir=/home/x/xk18/react2026 \
-    resume_id=<train-experiment-id>
- ```
- &nbsp; &nbsp; or for the online task:
- 
-  ```shell    
- python main.py \
-    data=motion_transvae \
-    trainer=motion_transvae \
-    trainer.batch_size=1 \
-    trainer.max_seq_len=256 \
-    trainer.window_size=16 \
-    trainer.data_transform=zero_center \
-    stage=test \
-    task=online \
-    data_dir=/home/x/xk18/react2026 \
-    resume_id=<train-experiment-id>
- ```
-
- <b>PerFRDiff</b>
- - Running the following shell can evaluate a trained PerFRDiff baseline for the offline task: 
-```shell
- python main.py \
-    data=motion_diffusion \
-    trainer=motion_diffusion \
-    trainer.batch_size=1 \
-    stage=test \
-    task=offline \
-    data_dir=/home/x/xk18/react2026 \
-    resume_id=<train-experiment-id>
+    resume_id=<train-experiment-id> \
+    trainer.eval_eeg=true \
+    trainer.eval_eeg_metrics=true \
+    trainer.eval_facial_metrics=true \
+    trainer.save_results=true \
+    trainer.renderer.do_render=false
 ```
- &nbsp; &nbsp; or for the online task:
+
+<b>2. ReGNN + EEG</b>
+
 ```shell
- python main.py \
-    data=motion_diffusion \
-    trainer=motion_diffusion \
-    trainer.batch_size=1 \
-    stage=test \
-    task=online \
-    data_dir=/home/x/xk18/react2026 \
-    resume_id=<train-experiment-id>
+python train.py \
+  --test \
+  --logs-dir "Gmm-logs-eeg-head" \
+  --data-dir "./datasets/REACT2026/" \
+  --model-pth "./baseline_react2026-main2/regnn/Gmm-logs-eeg-head/mhp-eeg-head-last-seed1.pth" \
+  --enable-eeg-head \
+  --eval-eeg \
+  --metric-threads 1 \
+  --eval-clip-batch-size 1 \
+  --layers 2 \
+  --act "ELU" \
+  --seed 1 \
+  --norm \
+  --neighbor-pattern "all" \
+  --convert-type "direct"
 ```
 
 
@@ -331,9 +449,12 @@ The pretrained model weights will be released soon.
 
 [1] Song, Siyang, Micol Spitale, Yiming Luo, Batuhan Bal, and Hatice Gunes. "Multiple Appropriate Facial Reaction Generation in Dyadic Interaction Settings: What, Why and How?." arXiv preprint arXiv:2302.06514 (2023).
 
-[2] Song, Siyang, Micol Spitale, Cheng Luo, Cristina Palmero, German Barquero, Hengde Zhu, Sergio Escalera et al. "REACT 2024: the Second Multiple Appropriate Facial Reaction Generation Challenge." arXiv preprint arXiv:2401.05166 (2024).
+[2] Song, Siyang, Micol Spitale, Xiangyu Kong, Hengde Zhu, Cheng Luo, Cristina Palmero, German Barquero et al. "React 2025: the third multiple appropriate facial reaction generation challenge." In Proceedings of the 33rd ACM International Conference on Multimedia, pp. 13979-13984. 2025.
 
-[3] Song, Siyang, Micol Spitale, Cheng Luo, Germán Barquero, Cristina Palmero, Sergio Escalera, Michel Valstar et al. "REACT2023: The First Multiple Appropriate Facial Reaction Generation Challenge." In Proceedings of the 31st ACM International Conference on Multimedia, pp. 9620-9624. 2023.
+[3] Song, Siyang, Micol Spitale, Cheng Luo, Cristina Palmero, German Barquero, Hengde Zhu, Sergio Escalera et al. "React 2024: the second multiple appropriate facial reaction generation challenge." In 2024 IEEE 18th International Conference on Automatic Face and Gesture Recognition (FG), pp. 1-5. IEEE, 2024. 
+
+[4] Song, Siyang, Micol Spitale, Cheng Luo, Germán Barquero, Cristina Palmero, Sergio Escalera, Michel Valstar et al. "REACT2023: The First Multiple Appropriate Facial Reaction Generation Challenge." In Proceedings of the 31st ACM International Conference on Multimedia, pp. 9620-9624. 2023.
+
 
 #### Annotation, basic feature extraction tools and baselines:
 
@@ -345,33 +466,64 @@ The pretrained model weights will be released soon.
 
 [9] Eyben, Florian, Martin Wöllmer, and Björn Schuller. "Opensmile: the munich versatile and fast open-source audio feature extractor." In Proceedings of the 18th ACM international conference on Multimedia, pp. 1459-1462. 2010.
 
-### Submissions are encouraged to cite previous facial reaction generation papers:
+### Submissions are encouraged to cite previous personalized facial reaction generation papers:
 
-[1] Huang, Yuchi, and Saad M. Khan. "Dyadgan: Generating facial expressions in dyadic interactions." In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition Workshops, pp. 11-18. 2017.
+[10] Zhu, Hengde, Xiangyu Kong, Weicheng Xie, Xin Huang, Linlin Shen, Lu Liu, Hatice Gunes, and Siyang Song. "Perfrdiff: Personalised weight editing for multiple appropriate facial reaction generation." In Proceedings of the 32nd ACM International Conference on Multimedia, pp. 9495-9504. 2024.
 
-[2] Huang, Yuchi, and Saad Khan. "A generative approach for dynamically varying photorealistic facial expressions in human-agent interactions." In Proceedings of the 20th ACM International Conference on Multimodal Interaction, pp. 437-445. 2018.
+[11] Zhu, Hengde, Xiangyu Kong, Weicheng Xie, Xin Huang, Xilin He, Lu Liu, Linlin Shen, Wei Zhang, Hatice Gunes, and Siyang Song. "PerReactor: Offline Personalised Multiple Appropriate Facial Reaction Generation." In Proceedings of the AAAI Conference on Artificial Intelligence, vol. 39, no. 2, pp. 1665-1673. 2025.
 
-[3] Shao, Zilong, Siyang Song, Shashank Jaiswal, Linlin Shen, Michel Valstar, and Hatice Gunes. "Personality recognition by modelling person-specific cognitive processes using graph representation." In proceedings of the 29th ACM international conference on multimedia, pp. 357-366. 2021.
+[12] Song, Siyang, Zilong Shao, Shashank Jaiswal, Linlin Shen, Michel Valstar, and Hatice Gunes. "Learning Person-specific Cognition from Facial Reactions for Automatic Personality Recognition." IEEE Transactions on Affective Computing (2022).
 
-[4] Song, Siyang, Zilong Shao, Shashank Jaiswal, Linlin Shen, Michel Valstar, and Hatice Gunes. "Learning Person-specific Cognition from Facial Reactions for Automatic Personality Recognition." IEEE Transactions on Affective Computing (2022).
+[13] Shao, Zilong, Siyang Song, Shashank Jaiswal, Linlin Shen, Michel Valstar, and Hatice Gunes. "Personality recognition by modelling person-specific cognitive processes using graph representation." In proceedings of the 29th ACM international conference on multimedia, pp. 357-366. 2021.
 
-[5] Barquero, German, Sergio Escalera, and Cristina Palmero. "Belfusion: Latent diffusion for behavior-driven human motion prediction." In Proceedings of the IEEE/CVF International Conference on Computer Vision, pp. 2317-2327. 2023.
 
-[6] Zhou, Mohan, Yalong Bai, Wei Zhang, Ting Yao, Tiejun Zhao, and Tao Mei. "Responsive listening head generation: a benchmark dataset and baseline." In Computer Vision–ECCV 2022: 17th European Conference, Tel Aviv, Israel, October 23–27, 2022, Proceedings, Part XXXVIII, pp. 124-142. Cham: Springer Nature Switzerland, 2022.
 
-[7] Luo, Cheng, Siyang Song, Weicheng Xie, Micol Spitale, Linlin Shen, and Hatice Gunes. "ReactFace: Multiple Appropriate Facial Reaction Generation in Dyadic Interactions." arXiv preprint arXiv:2305.15748 (2023).
+### Submissions are encouraged to cite previous generic facial reaction generation papers:
 
-[8] Xu, Tong, Micol Spitale, Hao Tang, Lu Liu, Hatice Gunes, and Siyang Song. "Reversible Graph Neural Network-based Reaction Distribution Learning for Multiple Appropriate Facial Reactions Generation." arXiv preprint arXiv:2305.15270 (2023).
+[14] Huang, Yuchi, and Saad M. Khan. "Dyadgan: Generating facial expressions in dyadic interactions." In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition Workshops, pp. 11-18. 2017.
 
-[9] Liang, Cong, Jiahe Wang, Haofan Zhang, Bing Tang, Junshan Huang, Shangfei Wang, and Xiaoping Chen. "Unifarn: Unified transformer for facial reaction generation." In Proceedings of the 31st ACM International Conference on Multimedia, pp. 9506-9510. 2023.
+[15] Huang, Yuchi, and Saad Khan. "A generative approach for dynamically varying photorealistic facial expressions in human-agent interactions." In Proceedings of the 20th ACM International Conference on Multimodal Interaction, pp. 437-445. 2018.
 
-[10] Yu, Jun, Ji Zhao, Guochen Xie, Fengxin Chen, Ye Yu, Liang Peng, Minglei Li, and Zonghong Dai. "Leveraging the latent diffusion models for offline facial multiple appropriate reactions generation." In Proceedings of the 31st ACM International Conference on Multimedia, pp. 9561-9565. 2023.
+[16] Barquero, German, Sergio Escalera, and Cristina Palmero. "Belfusion: Latent diffusion for behavior-driven human motion prediction." In Proceedings of the IEEE/CVF International Conference on Computer Vision, pp. 2317-2327. 2023.
 
-[11] Hoque, Ximi, Adamay Mann, Gulshan Sharma, and Abhinav Dhall. "BEAMER: Behavioral Encoder to Generate Multiple Appropriate Facial Reactions." In Proceedings of the 31st ACM International Conference on Multimedia, pp. 9536-9540. 2023.
+[17] Zhou, Mohan, Yalong Bai, Wei Zhang, Ting Yao, Tiejun Zhao, and Tao Mei. "Responsive listening head generation: a benchmark dataset and baseline." In Computer Vision–ECCV 2022: 17th European Conference, Tel Aviv, Israel, October 23–27, 2022, Proceedings, Part XXXVIII, pp. 124-142. Cham: Springer Nature Switzerland, 2022.
 
-[12] Zhu, Hengde, Xiangyu Kong, Weicheng Xie, Xin Huang, Linlin Shen, Lu Liu, Hatice Gunes, and Siyang Song. "Perfrdiff: Personalised weight editing for multiple appropriate facial reaction generation." In Proceedings of the 32nd ACM International Conference on Multimedia, pp. 9495-9504. 2024.
+[18] Luo, Cheng, Siyang Song, Weicheng Xie, Micol Spitale, Zongyuan Ge, Linlin Shen, and Hatice Gunes. "Reactface: Online multiple appropriate facial reaction generation in dyadic interactions." IEEE Transactions on Visualization and Computer Graphics 31, no. 9 (2024): 6190-6207.
 
-[13] Zhu, Hengde, Xiangyu Kong, Weicheng Xie, Xin Huang, Xilin He, Lu Liu, Linlin Shen, Wei Zhang, Hatice Gunes, and Siyang Song. "PerReactor: Offline Personalised Multiple Appropriate Facial Reaction Generation." In Proceedings of the AAAI Conference on Artificial Intelligence, vol. 39, no. 2, pp. 1665-1673. 2025.
+[19] Xu, Tong, Micol Spitale, Hao Tang, Lu Liu, Hatice Gunes, and Siyang Song. "Reversible graph neural network-based reaction distribution learning for multiple appropriate facial reactions generation." IEEE Transactions on Affective Computing (2026).
+
+[20] Liang, Cong, Jiahe Wang, Haofan Zhang, Bing Tang, Junshan Huang, Shangfei Wang, and Xiaoping Chen. "Unifarn: Unified transformer for facial reaction generation." In Proceedings of the 31st ACM International Conference on Multimedia, pp. 9506-9510. 2023.
+
+[21] Yu, Jun, Ji Zhao, Guochen Xie, Fengxin Chen, Ye Yu, Liang Peng, Minglei Li, and Zonghong Dai. "Leveraging the latent diffusion models for offline facial multiple appropriate reactions generation." In Proceedings of the 31st ACM International Conference on Multimedia, pp. 9561-9565. 2023.
+
+[22] Hoque, Ximi, Adamay Mann, Gulshan Sharma, and Abhinav Dhall. "BEAMER: Behavioral Encoder to Generate Multiple Appropriate Facial Reactions." In Proceedings of the 31st ACM International Conference on Multimedia, pp. 9536-9540. 2023.
+
+[23] Nguyen, Dang-Khanh, Prabesh Paudel, Seung-Won Kim, Ji-Eun Shin, Soo-Hyung Kim, and Hyung-Jeong Yang. "Multiple facial reaction generation using gaussian mixture of models and multimodal bottleneck transformer." In 2024 IEEE 18th International Conference on Automatic Face and Gesture Recognition (FG), pp. 1-5. IEEE, 2024.
+
+[24] Hu, Guanyu, Jie Wei, Siyang Song, Dimitrios Kollias, Xinyu Yang, Zhonglin Sun, and Odysseus Kaloidas. "Robust facial reactions generation: An emotion-aware framework with modality compensation." In 2024 IEEE International Joint Conference on Biometrics (IJCB), pp. 1-10. IEEE, 2024.
+
+[25] Liu, Zhenjie, Cong Liang, Jiahe Wang, Haofan Zhang, Yadong Liu, Caichao Zhang, Jialin Gui, and Shangfei Wang. "One-to-many appropriate reaction mapping modeling with discrete latent variable." In 2024 IEEE 18th International Conference on Automatic Face and Gesture Recognition (FG), pp. 1-5. IEEE, 2024.
+
+[26] Dam, Quang Tien, Tri Tung Nguyen Nguyen, Dinh Tuan Tran, and Joo-Ho Lee. "Finite scalar quantization as facial tokenizer for dyadic reaction generation." In 2024 IEEE 18th International Conference on Automatic Face and Gesture Recognition (FG), pp. 1-5. IEEE, 2024.
+
+[27] Luo, Jiachen, Jiajun He, Shuai Shen, Lin Wang, Huy Phan, Joshua Reiss, Lin Haijun, Bjoern Schuller, Zeyu Fu, and Siyang Song. "MReactor: Offline Multiple Appropriate Facial Reaction Generation with Hierarchical Cognitive Disentanglement." In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp. 3354-3363. 2026.
+
+[28] Xie, Weicheng, Chunlin Yan, Siyang Song, Zitong Yu, Linlin Shen, and Laizhong Cui. "Smooth Online Multiple Appropriate Facial Reaction Generation." In Proceedings of the 33rd ACM International Conference on Multimedia, pp. 5804-5813. 2025.
+
+[29] Mao, Qirong, Qiwei Wu, Na Liu, Yakui Ding, and Lijian Gao. "Scattering-Conditioned Diffusion Models for Multiple Appropriate Facial Reaction Generation." In Proceedings of the 33rd ACM International Conference on Multimedia, pp. 13985-13991. 2025.
+
+[30] Wang, Peng, Pujun Xue, Xiaofeng Liu, and Tongjuan Ji. "Explaining Listener Reactions: Personality-Guided Facial Response Generation with Cross-Modal Attention." In Proceedings of the 33rd ACM International Conference on Multimedia, pp. 13997-14003. 2025.
+
+[31] Huang, Jiajian, and Zitong Yu. "Multiple Appropriate Facial Reaction Generation Based on Multi-View Transformation of Speaker Video." In Proceedings of the 33rd ACM International Conference on Multimedia, pp. 13992-13996. 2025.
+
+[32] Nguyen, Minh-Duc, Hyung-Jeong Yang, Ngoc-Huynh Ho, Soo-Hyung Kim, Seungwon Kim, and Ji-Eun Shin. "Vector quantized diffusion models for multiple appropriate reactions generation." In 2024 IEEE 18th International Conference on Automatic Face and Gesture Recognition (FG), pp. 1-5. IEEE, 2024.
+
+[33] Lv, Qincheng, Xiaofeng Liu, Jie Li, Rongrong Ni, Pujun Xue, and Siyang Song. "Hierarchical multimodal decoupling-fusion framework for offline multiple appropriate facial reaction generation." In ICASSP 2025-2025 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP), pp. 1-5. IEEE, 2025.
+
+[34] Luo, Cheng, Siyang Song, Siyuan Yan, Zhen Yu, and Zongyuan Ge. "ReactDiff: Fundamental Multiple Appropriate Facial Reaction Diffusion Model." In Proceedings of the 33rd ACM International Conference on Multimedia, pp. 5607-5616. 2025.
+
+[35] Li, Jiaming, Sheng Wang, Xin Wang, Yitao Zhu, Honglin Xiong, Zixu Zhuang, and Qian Wang. "Reactdiff: Latent diffusion for facial reaction generation." Neural Networks 189 (2025): 107596.
+
   
 
 ## 🤝 Acknowledgement

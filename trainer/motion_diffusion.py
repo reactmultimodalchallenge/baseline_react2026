@@ -570,7 +570,7 @@ class Trainer:
         if eval_eeg:
             if getattr(model, "eeg_head", None) is None:
                 raise RuntimeError(
-                    "trainer.generic.eval_eeg=True but configs/model/motion_diffusion.yaml has no enabled eeg_head."
+                    "trainer.generic.eval_eeg=True but configs/<task-section>/model/motion_diffusion.yaml has no enabled eeg_head."
                 )
             eeg_ckpt_path = model.get_ckpt_path(
                 model.eeg_head,
