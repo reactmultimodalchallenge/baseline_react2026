@@ -1,11 +1,10 @@
 # Official baseline code for the Third REACT Challenge (react2026)
 [[Homepage]](https://sites.google.com/view/react2026/home)  [[Reference Paper (TBA)]]() [[Code]](https://github.com/reactmultimodalchallenge/baseline_react2026)
 
-This repository provides baseline methods for the [Third REACT Challenge](https://sites.google.com/view/react2026)
+This repository provides baseline methods for the [Forth REACT Challenge](https://sites.google.com/view/react2026)
 
 ### Baseline paper:
-- https://arxiv.org/pdf/2505.17223
-
+- [https://github.com/reactmultimodalchallenge/baseline_react2026/blob/main/](https://github.com/reactmultimodalchallenge/baseline_react2026/blob/main/REACT_2026_Baseline%20(1).pdf)
 ### MARS dataset:
 - Please send the signed EULA (https://github.com/reactmultimodalchallenge/baseline_react2026/blob/main/EULA_MARS%20dataset.pdf) to Dr Siyang Song at s.song@exeter.ac.uk 
 
