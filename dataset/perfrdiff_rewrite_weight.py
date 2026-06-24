@@ -22,6 +22,9 @@ DEFAULT_EEG_TARGET_COLS = [
     "Delta_TP10", "Theta_TP10", "Alpha_TP10", "Beta_TP10", "Gamma_TP10",
 ]
 EEG_RAW_CHANNELS = {"TP9", "AF7", "AF8", "TP10"}
+HISTORY_CONDITION_MODES = {"3dmm_only", "3dmm_personality", "history_only", "history_personality"}
+PERSONALITY_CONDITION_MODES = {"3dmm_personality", "history_personality", "personality_only"}
+VALID_PERSONAL_CONDITION_MODES = HISTORY_CONDITION_MODES | PERSONALITY_CONDITION_MODES
 
 
 def _empty_tensor():
@@ -59,6 +62,7 @@ class PerFRDiffRewriteWeightDataset(Dataset):
             load_ref=False,
             load_personality_l=False,
             personal_condition_mode="3dmm_personality",
+            personal_feature_type="3dmm",
             personality_dir_name="personality",
             load_eeg_l=False,
             eeg_dir_name="eeg_processed",
@@ -84,9 +88,12 @@ class PerFRDiffRewriteWeightDataset(Dataset):
         self.load_3dmm_l = load_3dmm_l
         self.load_ref = load_ref
         self.personal_condition_mode = personal_condition_mode
-        if self.personal_condition_mode not in {"3dmm_personality", "personality_only", "3dmm_only"}:
+        if self.personal_condition_mode not in VALID_PERSONAL_CONDITION_MODES:
             raise ValueError(f"Unknown personal_condition_mode: {self.personal_condition_mode}")
-        self.load_personality_l = load_personality_l and self.personal_condition_mode != "3dmm_only"
+        self.personal_feature_type = personal_feature_type
+        if self.personal_feature_type not in {"3dmm", "emotion"}:
+            raise ValueError(f"Unknown personal_feature_type: {self.personal_feature_type}")
+        self.load_personality_l = load_personality_l and self.personal_condition_mode in PERSONALITY_CONDITION_MODES
         self.load_eeg_l = load_eeg_l
         self.eeg_target_cols = list(eeg_target_cols) if eeg_target_cols is not None else DEFAULT_EEG_TARGET_COLS
         self.eeg_channel_scale = eeg_channel_scale
@@ -386,12 +393,16 @@ class PerFRDiffRewriteWeightDataset(Dataset):
         return paths
 
     def _load_personal_clip(self, listener_path, deterministic=False):
-        personal_3dmm = self._load_3dmm(self._choose_personal_path(listener_path))
-        if deterministic or personal_3dmm.shape[0] <= self.clip_length:
+        personal_path = self._choose_personal_path(listener_path)
+        if self.personal_feature_type == "emotion":
+            personal_clip = self._load_emotion(personal_path)
+        else:
+            personal_clip = self._load_3dmm(personal_path)
+        if deterministic or personal_clip.shape[0] <= self.clip_length:
             cp = 0
         else:
-            cp = random.randint(0, personal_3dmm.shape[0] - self.clip_length)
-        return self._pad_clip(personal_3dmm[cp:cp + self.clip_length], self.clip_length)
+            cp = random.randint(0, personal_clip.shape[0] - self.clip_length)
+        return self._pad_clip(personal_clip[cp:cp + self.clip_length], self.clip_length)
 
     def __getitem__(self, index):
         sample = self.samples[index]
@@ -421,7 +432,7 @@ class PerFRDiffRewriteWeightDataset(Dataset):
             listener_emotion_gts = [self._load_emotion(path) for path in gt_paths]
             listener_3dmm_gts = [self._load_3dmm(path) for path in gt_paths]
             listener_clip_lengths = torch.tensor([emotion.shape[0] for emotion in listener_emotion_gts])
-            personal_3dmm = _empty_tensor() if self.personal_condition_mode == "personality_only" \
+            personal_3dmm = _empty_tensor() if self.personal_condition_mode not in HISTORY_CONDITION_MODES \
                 else self._load_personal_clip(listener_path, deterministic=True)
             return (
                 speaker_audio[:total_length],
@@ -440,7 +451,7 @@ class PerFRDiffRewriteWeightDataset(Dataset):
             )
 
         cp = random.randint(0, total_length - self.clip_length) if total_length > self.clip_length else 0
-        personal_3dmm = _empty_tensor() if self.personal_condition_mode == "personality_only" \
+        personal_3dmm = _empty_tensor() if self.personal_condition_mode not in HISTORY_CONDITION_MODES \
             else self._load_personal_clip(listener_path)
 
         return (

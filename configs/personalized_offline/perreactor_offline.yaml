@@ -9,7 +9,7 @@ hydra:
 seed: 1234
 logger_level: INFO
 
-task: online
+task: offline
 stage: ???
 data_dir: ???
 resume: false
@@ -18,8 +18,8 @@ resume_id: ""
 num_gts: 10
 
 defaults:
-  - /personalized_online/data/perfrdiff_rewrite_weight@data
-  - /personalized_online/trainer/perfrdiff_rewrite_weight@trainer
+  - /personalized_offline/data/perreactor_offline@data
+  - /personalized_offline/trainer/perreactor_offline@trainer
   - /shared/logger: none
   - /shared/path@path
   - _self_

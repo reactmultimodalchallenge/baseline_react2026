@@ -1,0 +1,64 @@
+model_name: perreactor_offline
+_target_: trainer.perreactor_offline.Trainer
+
+trainer_mode: generic
+folder: save/${trainer.model_name}/${data.data_name}/${task}
+ckpt_dir: ${get_last_checkpoint:${trainer.folder}}
+resumed_training: ${resume}
+current_runid: ${run_id}
+resume_runid: ${resume_id}
+batch_size: 4
+post_config_name: configs/shared/model/emotion_autoencoder.yaml
+post_clip_length: 1000
+data_clamp: True
+num_eval_preds: 10
+eval_clip_batch_size: 16
+parallel_eval_preds: True
+
+pretrained:
+    diffusion_prior: pretrained_models/diffusion_model/DiffusionPriorNetwork/checkpoint.pth
+    diffusion_decoder: pretrained_models/diffusion_model/TransformerDenoiser/checkpoint.pth
+    eeg_head_checkpoint: pretrained_models/rewrite_weight/EEGPredictionHead/checkpoint.pth
+    adapter_checkpoint: ""
+
+perreactor:
+    freeze_backbone: True
+    personal_condition_mode: history_only
+    personal_feature_dim: 25
+    personal_hidden_dim: 128
+    personal_embed_dim: 512
+    k: 2
+    dropout: 0.1
+    personality_input_dim: 5
+    personality_hidden_dim: 128
+    personality_dropout: 0.1
+    personality_fusion_hidden_dim: 512
+    optimizer:
+        lr: 0.0001
+        weight_decay: 5e-4
+        eps: 1e-8
+
+generic:
+    seed: 1234
+    start_epoch: 0
+    epochs: 100
+    model: LatentMatcher
+    clip_grad: False
+    num_workers: 16
+    log_dir: log
+    tb_dir: tb_logs
+    out_dir: results
+    save_period: 10
+    val_period: 10
+    num_preds: 1
+    clip_length: 750
+    window_size: 30
+    s_ratio: 2
+    train_eeg: False
+    train_eeg_head_only: False
+    eval_eeg: True
+    bidirectional: False
+
+defaults:
+    - /personalized_offline/model/motion_diffusion@model
+    - /personalized_offline/model/losses/perfrdiff_rewrite_weight@criterion

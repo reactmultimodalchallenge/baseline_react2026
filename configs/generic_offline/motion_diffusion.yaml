@@ -1,3 +1,5 @@
+# @package _global_
+
 hydra:
   run:
     dir: outputs/${trainer.model_name}/${data.data_name}/${task}/${run_id}
