@@ -137,8 +137,23 @@ class Trainer:
             listener_video, listener_emotion, listener_3dmm = (
                 stack(clips) for clips in (listener_video_clips, listener_emotion_clips, listener_3dmm_clips))
             past_listener_emotion = past_listener_3dmm = None
-            seq_lengths = torch.tensor(speaker_seq_lengths).clamp(max=clip_length)
+            seq_lengths = torch.tensor(speaker_seq_lengths).clamp(min=1, max=clip_length)
             listener_eeg = listener_eeg_mask = None
+            if listener_eeg_clips is not None:
+                # Offline EEG supervision uses the last valid frame for each padded/cropped clip.
+                listener_eeg = []
+                listener_eeg_mask = []
+                eeg_masks = listener_eeg_masks if listener_eeg_masks is not None else [None] * len(listener_eeg_clips)
+                for eeg_clip, eeg_mask_clip, seq_length in zip(listener_eeg_clips, eeg_masks, seq_lengths):
+                    target_index = min(max(int(seq_length.item()) - 1, 0), eeg_clip.shape[0] - 1)
+                    eeg_target = eeg_clip[target_index]
+                    listener_eeg.append(eeg_target)
+                    if eeg_mask_clip is None or eeg_mask_clip.numel() == 0:
+                        listener_eeg_mask.append(torch.ones_like(eeg_target))
+                    else:
+                        listener_eeg_mask.append(eeg_mask_clip[target_index])
+                listener_eeg = torch.stack(listener_eeg, dim=0)
+                listener_eeg_mask = torch.stack(listener_eeg_mask, dim=0)
             # Tensor([58, 750, 632, ...])
 
         elif self.task == "online":

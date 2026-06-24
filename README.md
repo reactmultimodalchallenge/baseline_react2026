@@ -1,10 +1,11 @@
 # Official baseline code for the Third REACT Challenge (react2026)
 [[Homepage]](https://sites.google.com/view/react2026/home)  [[Reference Paper (TBA)]]() [[Code]](https://github.com/reactmultimodalchallenge/baseline_react2026)
 
-This repository provides baseline methods for the [Forth REACT Challenge](https://sites.google.com/view/react2026)
+This repository provides baseline methods for the [Third REACT Challenge](https://sites.google.com/view/react2026)
 
 ### Baseline paper:
-- [https://github.com/reactmultimodalchallenge/baseline_react2026/blob/main/](https://github.com/reactmultimodalchallenge/baseline_react2026/blob/main/REACT_2026_Baseline%20(1).pdf)
+- https://arxiv.org/pdf/2505.17223
+
 ### MARS dataset:
 - Please send the signed EULA (https://github.com/reactmultimodalchallenge/baseline_react2026/blob/main/EULA_MARS%20dataset.pdf) to Dr Siyang Song at s.song@exeter.ac.uk 
 
@@ -205,7 +206,7 @@ python main.py \
     stage=fit \
     data_dir=./datasets/REACT2026/ \
     trainer.train_eeg_head_only=false \
-    trainer.model.eeg_head.enabled=true \
+    trainer.model.eeg_head.enabled=true
 ```
 
 
@@ -223,8 +224,12 @@ python main.py \
     data_dir=./datasets/REACT2026/ \
     trainer.generic.train_eeg=true \
     trainer.generic.train_eeg_head_only=false \
-    trainer.main_model.args.personal_condition_mode=3dmm_only
+    trainer.main_model.args.personal_condition_mode=3dmm_only \
+    trainer.pretrained.diffusion_prior=<diffusion-prior-model-path/checkpoint.pth> \
+    trainer.pretrained.diffusion_decoder=<diffusion-decoder-model-path/checkpoint.pth> \
+    trainer.pretrained.eeg_head_checkpoint=<eeg-head-checkpoint-path/checkpoint.pth>
 ```
+The paths `diffusion-prior-model-path`, `diffusion-decoder-model-path`, and `eeg-head-checkpoint-pathpoint` point to the checkpoints saved from training `generic_online/motion_diffusion`.
 
 (b) Condition Input: Personality_only
 ```shell
@@ -234,8 +239,12 @@ python main.py \
     data_dir=./datasets/REACT2026/ \
     trainer.generic.train_eeg=true \
     trainer.generic.train_eeg_head_only=false \
-    trainer.main_model.args.personal_condition_mode=personality_only
+    trainer.main_model.args.personal_condition_mode=personality_only \
+    trainer.pretrained.diffusion_prior=<diffusion-prior-model-path/checkpoint.pth> \
+    trainer.pretrained.diffusion_decoder=<diffusion-decoder-model-path/checkpoint.pth> \
+    trainer.pretrained.eeg_head_checkpoint=<eeg-head-checkpoint-path/checkpoint.pth>
 ```
+The paths `diffusion-prior-model-path`, `diffusion-decoder-model-path`, and `eeg-head-checkpoint-pathpoint` point to the checkpoints saved from training `generic_online/motion_diffusion`.
 
 (c) Condition Input: Listener historical facial behaviours + Personality_only
 ```shell
@@ -245,13 +254,39 @@ python main.py \
     data_dir=./datasets/REACT2026/ \
     trainer.generic.train_eeg=true \
     trainer.generic.train_eeg_head_only=false \
-    trainer.main_model.args.personal_condition_mode=3dmm_personality
+    trainer.main_model.args.personal_condition_mode=3dmm_personality \
+    trainer.pretrained.diffusion_prior=<diffusion-prior-model-path/checkpoint.pth> \
+    trainer.pretrained.diffusion_decoder=<diffusion-decoder-model-path/checkpoint.pth> \
+    trainer.pretrained.eeg_head_checkpoint=<eeg-head-checkpoint-path/checkpoint.pth>
 ```
+The paths `diffusion-prior-model-path`, `diffusion-decoder-model-path`, and `eeg-head-checkpoint-pathpoint` point to the checkpoints saved from training `generic_online/motion_diffusion`.
 
 <b>Generic offline: </b>
 <p>
 
-<b> 1. TransVAE + EEG</b>
+<b>1. Motion Diffusion + EEG, first-stage backbone for S-PerReactor</b>
+<p>
+
+Train this generic offline diffusion backbone before training `personalized_offline/perreactor_offline`. It saves the `DiffusionPriorNetwork`, `TransformerDenoiser`, and `EEGPredictionHead` checkpoints used by S-PerReactor.
+
+```shell
+python main.py \
+    --config-name generic_offline/motion_diffusion \
+    trainer.batch_size=4 \
+    stage=fit \
+    data_dir=./datasets/REACT2026/ \
+    trainer.generic.train_eeg_head_only=false \
+    trainer.model.diff_model.eeg_head.enabled=true
+```
+
+The checkpoints are saved under:
+```text
+save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/
+```
+
+
+
+<b>2. TransVAE + EEG</b>
 <p>
 
 ```shell
@@ -263,10 +298,10 @@ python main.py \
     stage=fit \
     data_dir=./datasets/REACT2026/ \
     trainer.train_eeg_head_only=false \
-    trainer.model.eeg_head.enabled=true \
+    trainer.model.eeg_head.enabled=true
 ```
 
-<b>2. ReGNN + EEG</b>
+<b>3. ReGNN + EEG</b>
 <p>
 
 (a) Run this command from the `regnn/` directory:
@@ -299,6 +334,75 @@ python train.py \
     --convert-type "direct" \
     --loss-mid
 ```
+
+<b>Personalized offline:</b>
+<p>
+
+<b>1. S-PerReactor + EEG</b>
+<p>
+
+S-PerReactor reuses the pretrained generic offline diffusion prior and decoder, freezes the generic backbone by default, and trains the listener personal adapter. Set `trainer.perreactor.personal_condition_mode` to choose the personal condition:
+`history_only`, `personality_only`, or `history_personality`.
+Set `trainer.generic.train_eeg=false` to train only the S-PerReactor adapter without EEG supervision.
+
+(a) Condition Input: Listener historical emotion behaviours
+```shell
+python main.py \
+    --config-name personalized_offline/perreactor_offline \
+    stage=fit \
+    data_dir=./datasets/REACT2026/ \
+    trainer.generic.train_eeg=true \
+    trainer.generic.train_eeg_head_only=false \
+    trainer.perreactor.personal_condition_mode=history_only \
+    trainer.pretrained.diffusion_prior=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/DiffusionPriorNetwork/checkpoint_best.pth \
+    trainer.pretrained.diffusion_decoder=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/TransformerDenoiser/checkpoint_best.pth \
+    trainer.pretrained.eeg_head_checkpoint=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/EEGPredictionHead/checkpoint_best.pth
+```
+
+(b) Condition Input: Personality traits
+```shell
+python main.py \
+    --config-name personalized_offline/perreactor_offline \
+    stage=fit \
+    data_dir=./datasets/REACT2026/ \
+    trainer.generic.train_eeg=true \
+    trainer.generic.train_eeg_head_only=false \
+    trainer.perreactor.personal_condition_mode=personality_only \
+    trainer.pretrained.diffusion_prior=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/DiffusionPriorNetwork/checkpoint_best.pth \
+    trainer.pretrained.diffusion_decoder=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/TransformerDenoiser/checkpoint_best.pth \
+    trainer.pretrained.eeg_head_checkpoint=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/EEGPredictionHead/checkpoint_best.pth
+```
+
+(c) Condition Input: Listener historical emotion behaviours + Personality traits
+```shell
+python main.py \
+    --config-name personalized_offline/perreactor_offline \
+    stage=fit \
+    data_dir=./datasets/REACT2026/ \
+    trainer.generic.train_eeg=true \
+    trainer.generic.train_eeg_head_only=false \
+    trainer.perreactor.personal_condition_mode=history_personality \
+    trainer.pretrained.diffusion_prior=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/DiffusionPriorNetwork/checkpoint_best.pth \
+    trainer.pretrained.diffusion_decoder=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/TransformerDenoiser/checkpoint_best.pth \
+    trainer.pretrained.eeg_head_checkpoint=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/EEGPredictionHead/checkpoint_best.pth
+```
+
+(d) Second-stage EEG head-only training
+```shell
+python main.py \
+    --config-name personalized_offline/perreactor_offline \
+    stage=fit \
+    data_dir=./datasets/REACT2026/ \
+    trainer.generic.train_eeg=true \
+    trainer.generic.train_eeg_head_only=true \
+    trainer.perreactor.personal_condition_mode=<same-as-adapter-training> \
+    trainer.pretrained.adapter_checkpoint=<perreactor-adapter-checkpoint/checkpoint_best.pth> \
+    trainer.pretrained.diffusion_prior=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/DiffusionPriorNetwork/checkpoint_best.pth \
+    trainer.pretrained.diffusion_decoder=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/TransformerDenoiser/checkpoint_best.pth \
+    trainer.pretrained.eeg_head_checkpoint=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/EEGPredictionHead/checkpoint_best.pth
+```
+
+The generic offline checkpoints come from the first-stage `generic_offline/motion_diffusion` run above. The S-PerReactor adapter checkpoint is saved under `save/perreactor_offline/<data-name>/offline/<run-id>/PerReactor/`.
  
 </p>
 </details>
@@ -366,7 +470,10 @@ python main.py \
     data_dir=./datasets/REACT2026/ \
     resume_id=<train-experiment-id> \
     trainer.generic.eval_eeg=true \
-    trainer.main_model.args.personal_condition_mode=3dmm_only
+    trainer.main_model.args.personal_condition_mode=3dmm_only \
+    trainer.pretrained.diffusion_prior=<diffusion-prior-model-path/checkpoint.pth> \
+    trainer.pretrained.diffusion_decoder=<diffusion-decoder-model-path/checkpoint.pth> \
+    trainer.pretrained.eeg_head_checkpoint=<eeg-head-checkpoint-path/checkpoint.pth>
 ```
 
 (b) Condition Input: Personality_only
@@ -378,7 +485,10 @@ python main.py \
     data_dir=./datasets/REACT2026/ \
     resume_id=<train-experiment-id> \
     trainer.generic.eval_eeg=true \
-    trainer.main_model.args.personal_condition_mode=personality_only
+    trainer.main_model.args.personal_condition_mode=personality_only \
+    trainer.pretrained.diffusion_prior=<diffusion-prior-model-path/checkpoint.pth> \
+    trainer.pretrained.diffusion_decoder=<diffusion-decoder-model-path/checkpoint.pth> \
+    trainer.pretrained.eeg_head_checkpoint=<eeg-head-checkpoint-path/checkpoint.pth>
 ```
 
 (c) Condition Input: Listener historical facial behaviours + Personality_only
@@ -390,7 +500,10 @@ python main.py \
     data_dir=./datasets/REACT2026/ \
     resume_id=<train-experiment-id> \
     trainer.generic.eval_eeg=true \
-    trainer.main_model.args.personal_condition_mode=3dmm_personality
+    trainer.main_model.args.personal_condition_mode=3dmm_personality \
+    trainer.pretrained.diffusion_prior=<diffusion-prior-model-path/checkpoint.pth> \
+    trainer.pretrained.diffusion_decoder=<diffusion-decoder-model-path/checkpoint.pth> \
+    trainer.pretrained.eeg_head_checkpoint=<eeg-head-checkpoint-path/checkpoint.pth>
 ```
 
 <b>Generic offline: </b>
@@ -436,6 +549,29 @@ python train.py \
   --convert-type "direct"
 ```
 
+<b>Personalized offline:</b>
+<p>
+
+<b>1. S-PerReactor + EEG</b>
+<p>
+
+Use the same `trainer.perreactor.personal_condition_mode` as the training run (`history_only`, `personality_only`, or `history_personality`). Set `trainer.generic.eval_eeg=false` to evaluate facial metrics only, or `trainer.generic.eval_eeg=true` to also save `GT_EEG`, `PRED_EEG`, and `EEG_MASK` in `results.pt`.
+
+```shell
+python main.py \
+    --config-name personalized_offline/perreactor_offline \
+    trainer.batch_size=1 \
+    stage=test \
+    data_dir=./datasets/REACT2026/ \
+    resume_id=<perreactor-train-experiment-id> \
+    trainer.generic.eval_eeg=true \
+    trainer.perreactor.personal_condition_mode=<same-as-training> \
+    trainer.pretrained.diffusion_prior=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/DiffusionPriorNetwork/checkpoint_best.pth \
+    trainer.pretrained.diffusion_decoder=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/TransformerDenoiser/checkpoint_best.pth \
+    trainer.pretrained.eeg_head_checkpoint=save/motion_diffusion/react_2025/offline/checkpoints/<generic-offline-run-id>/EEGPredictionHead/checkpoint_best.pth
+```
+
+If the resumed S-PerReactor checkpoint was trained with `trainer.generic.train_eeg=true`, `eeg_head.*` is loaded from that checkpoint. Otherwise, keep `trainer.pretrained.eeg_head_checkpoint` set when `trainer.generic.eval_eeg=true`.
 
 </details>
 
