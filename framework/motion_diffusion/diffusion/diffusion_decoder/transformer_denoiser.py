@@ -76,6 +76,7 @@ class TransformerDenoiser(nn.Module):
                  s_3dmm_enc_drop_prob: float = 0.2,  # speaker_3dmm_encodings
                  s_emotion_enc_drop_prob: float = 1.0,  # speaker_emotion_encodings
                  past_l_emotion_drop_prob: float = 1.0,  # past_listener_emotion
+                 l_personal_embed_drop_prob: float = 0.0,  # listener_personal_embed
                  **kwargs) -> None:
         super().__init__()
 
@@ -96,6 +97,7 @@ class TransformerDenoiser(nn.Module):
         self.s_3dmm_enc_drop_prob = s_3dmm_enc_drop_prob
         self.s_emotion_enc_drop_prob = s_emotion_enc_drop_prob
         self.past_l_emotion_drop_prob = past_l_emotion_drop_prob
+        self.l_personal_embed_drop_prob = l_personal_embed_drop_prob
 
         # project between emotion output feat and emotion latent embedding
         self.to_emotion_embed = nn.Linear(nfeats, self.latent_dim) if nfeats != self.latent_dim else nn.Identity()
@@ -247,11 +249,30 @@ class TransformerDenoiser(nn.Module):
             past_listener_emotion = self.mask_cond(past_listener_emotion, mode, self.past_l_emotion_drop_prob)
         past_listener_emotion = past_listener_emotion.permute(1, 0, 2).contiguous()
 
+        listener_personal_embed = model_kwargs.get("listener_personal_embed")
+        if listener_personal_embed is None or self.l_personal_embed_drop_prob >= 1.0:
+            listener_personal_embed = torch.zeros(size=(bs, 0, self.latent_dim)).to(sample.device)
+        else:
+            if listener_personal_embed.dim() == 2:
+                listener_personal_embed = listener_personal_embed.unsqueeze(1)
+            if listener_personal_embed.shape[-1] != self.latent_dim:
+                raise ValueError(
+                    "listener_personal_embed last dimension must match latent_dim: "
+                    f"{listener_personal_embed.shape[-1]} != {self.latent_dim}"
+                )
+            listener_personal_embed = self.mask_cond(
+                listener_personal_embed,
+                mode,
+                self.l_personal_embed_drop_prob,
+            )
+        listener_personal_embed = listener_personal_embed.permute(1, 0, 2).contiguous()
+
         return (speaker_audio_encodings,
                 speaker_latent_embed,
                 speaker_3dmm_encodings,
                 speaker_emotion_encodings,
-                past_listener_emotion)
+                past_listener_emotion,
+                listener_personal_embed)
 
     def _forward(
             self,
@@ -262,6 +283,7 @@ class TransformerDenoiser(nn.Module):
             speaker_3dmm_encodings,
             speaker_emotion_encodings,
             past_listener_emotion,
+            listener_personal_embed,
             motion_length=None,  # Tensor: (bz, )
     ):
 
@@ -283,6 +305,7 @@ class TransformerDenoiser(nn.Module):
             speaker_emotion_encodings,
             speaker_latent_embed,  # TODO motion_length applied rigorously
             past_listener_emotion,
+            listener_personal_embed,
         ]
         # [N', bs, d]
 
@@ -382,7 +405,8 @@ class TransformerDenoiser(nn.Module):
          speaker_latent_embed,
          speaker_3dmm_encodings,
          speaker_emotion_encodings,
-         past_listener_emotion) = (
+         past_listener_emotion,
+         listener_personal_embed) = (
             self.get_model_kwargs(
                 bs,
                 'test',
@@ -400,6 +424,7 @@ class TransformerDenoiser(nn.Module):
             speaker_3dmm_encodings,
             speaker_emotion_encodings,
             past_listener_emotion,
+            listener_personal_embed,
             model_kwargs.get('motion_length', None),
         )
 
@@ -430,7 +455,8 @@ class TransformerDenoiser(nn.Module):
          speaker_latent_embed,
          speaker_3dmm_encodings,
          speaker_emotion_encodings,
-         past_listener_emotion) = (
+         past_listener_emotion,
+         listener_personal_embed) = (
             self.get_model_kwargs(
                 bs,
                 'train',
@@ -447,6 +473,7 @@ class TransformerDenoiser(nn.Module):
             speaker_3dmm_encodings,
             speaker_emotion_encodings,
             past_listener_emotion,
+            listener_personal_embed,
             model_kwargs.get('motion_length', None),
         )
 

@@ -316,6 +316,7 @@ class DecoderLatentMatcher(BaseLatentModel):
             "s_3dmm_enc_drop_prob": cfg.get("s_3dmm_enc_drop_prob", 0.2),
             "s_emotion_enc_drop_prob": cfg.get("s_emotion_enc_drop_prob", 1.0),
             "past_l_emotion_drop_prob": cfg.get("past_l_emotion_drop_prob", 1.0),
+            "l_personal_embed_drop_prob": cfg.get("l_personal_embed_drop_prob", 0.0),
         }
         self.use_past_frames = cfg.get("use_past_frames", False)
 
@@ -337,7 +338,11 @@ class DecoderLatentMatcher(BaseLatentModel):
             listener_emotion_input=None,
             past_listener_emotion=None,
             motion_length=None,
+            listener_personal_embed=None,
     ):
+        if listener_personal_embed is not None:
+            listener_personal_embed = listener_personal_embed.repeat_interleave(self.num_preds, dim=0)
+
         with torch.no_grad():
             s_audio_encodings = self.audio_encoder._encode(speaker_audio_input)
             s_audio_encodings = s_audio_encodings.repeat_interleave(self.num_preds, dim=0)
@@ -369,6 +374,8 @@ class DecoderLatentMatcher(BaseLatentModel):
                 "past_listener_emotion": past_listener_emotion,
                 "motion_length": motion_length,
             }
+        if listener_personal_embed is not None:
+            model_kwargs["listener_personal_embed"] = listener_personal_embed
 
         if self.stage == "test":
             bs, l, _ = s_audio_encodings.shape  # bz * num_preds
@@ -640,6 +647,7 @@ class LatentMatcher(nn.Module):
             listener_eeg_mask=None,
             past_listener_emotion=None,
             motion_length=None,
+            listener_personal_embed=None,
     ):
 
         outputs = self.diffusion_decoder.forward(
@@ -649,6 +657,7 @@ class LatentMatcher(nn.Module):
             listener_emotion_input=listener_emotion_input,
             past_listener_emotion=past_listener_emotion,
             motion_length=motion_length,
+            listener_personal_embed=listener_personal_embed,
         )
         outputs = self._attach_eeg_outputs(
             outputs,
